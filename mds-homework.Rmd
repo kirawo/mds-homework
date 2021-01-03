@@ -1,0 +1,7 @@
+---
+title: "Medical Data Science Homework"
+author: "Kira Wolff"
+date: "29 12 2020"
+output: pdf_document
+---
+
