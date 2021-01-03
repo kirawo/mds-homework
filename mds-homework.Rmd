@@ -5,3 +5,6 @@ date: "29 12 2020"
 output: pdf_document
 ---
 
+```{r packages}
+library(tidyverse)
+```
