@@ -8,3 +8,7 @@ output: pdf_document
 ```{r packages}
 library(tidyverse)
 ```
+
+```{r data}
+cardio <- read.csv("cardio_train.csv")
+```
