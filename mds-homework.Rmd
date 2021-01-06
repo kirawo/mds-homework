@@ -1,0 +1,454 @@
+---
+title: "Medical Data Science Homework"
+author: "Kira Wolff"
+date: "29 12 2020"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo=FALSE,  warning=FALSE, error=FALSE, message=FALSE)
+# R code is never shown
+# warnings, errors and messages are not included in pdf
+
+```
+
+
+```{r packages, include=FALSE}
+library(tidyverse)
+```
+
+```{r data, include=FALSE}
+cardio.dat <- read.csv("cardio_train.csv", sep=";") %>% 
+  as_tibble() %>% 
+  mutate(bmi = weight/(height/100)^2, #compute new variable bmi
+         age.years = floor(age/365.25), # compute age in years
+         # factor formatting
+         cardio = factor(cardio,labels=c("disease absent", "disease present")), # change labels
+         gender = factor(gender, labels = c("women", "men")),
+         gluc = factor(gluc, labels =c("glucose normal", "above normal", "well above normal")),
+         smoke = factor(smoke, labels = c("not smoking", "smoking")),
+         alco = factor(alco, labels= c("not much alcohol intake", "much alcohol intake")),
+         active = factor(active, labels=c("not very active", "very active")))
+
+#check for unrealistic data of continuous parameters
+cardio.dat %>% 
+  summarize(min.age = min(age.years),
+         max.age = max(age.years),
+         min.height = min(height),
+         max.height = max(height),
+         min.weight = min(weight),
+         max.weight = max(weight),
+         min.sys = min(ap_hi),
+         max.sys = max(ap_hi),
+         min.dias = min(ap_lo),
+         max.dias = max(ap_lo)
+         )
+
+```
+
+## Exercise 1
+
+_Compute a new variable BMI and create an overview table for the variable
+BMI for both cardio groups._
+
+
+
+```{r bmi comparison}
+# create table with bmi mean and sd
+bmi.tab <- cardio.dat %>% 
+              group_by(cardio) %>% 
+              summarize(mean = round(mean(bmi, na.rm=T),2),
+                        sd = round(sd(bmi, na.rm=T),2),
+                        min = round(min(bmi, na.rm=T),2),
+                        max = round(max(bmi, na.rm=T)))
+
+# nicer formatting of table
+knitr::kable(bmi.tab, 
+             caption= "BMI by cardiovascular disease")
+```
+The table reveals unrealistic values for BMI, probably due to unrealistic values
+in height and/or weight.
+
+## Exercise 2
+
+_How does the systolic blood pressure and the BMI correlate? Is there a
+difference between the two classes of cardiovascular disease?_
+
+
+```{r sys plot, fig.height=3, fig.width=6}
+cardio.dat %>% 
+  ggplot(aes(bmi, ap_hi, color=cardio))+
+    geom_point(alpha=0.5)+
+    xlab("BMI")+
+    ylab("Systolic Blood Pressure")+
+    #scale_color_manual(guide=FALSE)+
+    theme_minimal()+
+    theme(legend.title=element_blank())
+```
+
+The plot reveal unrealistic data for BMI and systolic blood pressure.
+
+
+
+```{r sys correlations}
+# all data
+sys.cor <- cardio.dat %>% 
+  summarize(cor = round(cor.test(ap_hi, bmi)$estimate,2),
+            p = round(cor.test(ap_hi, bmi)$p.value,5))
+
+# splitted by cardio
+sys.cor.cardio <- cardio.dat %>% 
+  group_by(cardio) %>% 
+  summarize(cor = round(cor.test(ap_hi, bmi)$estimate,2),
+            p = round(cor.test(ap_hi, bmi)$p.value,5))
+```
+
+The correlation between BMI and systolic blood pressure for all is very small 
+( _r_ = `r sys.cor$cor`) but significant ( _p_ < 0.0001), probably due 
+to the big sample size.
+
+Splitted by cardiovascular disease, the correlation for healthy people is _r_= 
+`r sys.cor.cardio$cor[1]` ( _p_ < 0.0001) and for affected people _r_ = 
+`r sys.cor.cardio$cor[2]`, which is not significant.
+
+Due to the data problem, these correlations are probably not a good image of 
+the real relationship.
+
+## Exercise 3
+
+_Answer the same question for the diastolic blood pressure._
+
+```{r dias plots, fig.height=3, fig.width=6}
+cardio.dat %>% 
+  ggplot(aes(bmi, ap_lo, color=cardio))+
+    geom_point(alpha=0.5)+
+    xlab("BMI")+
+    ylab("Diastolic Blood Pressure")+
+    #scale_color_manual(guide=FALSE)+
+    theme_minimal()+
+    theme(legend.title=element_blank())
+```
+
+This plot shows a similar data problem as the one for systolic blood pressure.
+
+```{r}
+# all data
+dias.cor <- cardio.dat %>% 
+  summarize(cardio = "not splitted",
+            cor = round(cor.test(ap_lo, bmi)$estimate,2),
+            p = round(cor.test(ap_lo, bmi)$p.value,5))
+
+# splitted by cardio
+dias.cor.cardio <- cardio.dat %>% 
+  group_by(cardio) %>% 
+  summarize(cor = round(cor.test(ap_lo, bmi)$estimate,2),
+            p = round(cor.test(ap_lo, bmi)$p.value,5))
+
+```
+
+For diastolic blood pressure, the correlations are similar. 
+
+```{r display corrtable}
+# combine table
+dias.cor.comb <- rbind(dias.cor, dias.cor.cardio)
+
+# display table nicely
+knitr::kable(dias.cor.comb)
+```
+
+_p-values smaller than 0.0001 are displayed as 0_
+
+## Exercise 4
+
+_Repeat the two tasks before by restricting to patients whose respective
+blood pressure is below the 95% quantile threshold of the respective blood
+pressure and whose BMI is below the 95% quantile of BMI_
+
+Filtering the data by the mentiones quantiles will probably solve the problem of
+the unrealistic data displayed in the plots above.
+
+Additionally, I will add a filter for negative data in parameters where negative
+data is unrealistic.
+
+
+```{r quantiles}
+# Quantile bestimmen
+sys.95 <- cardio.dat %>% 
+            summarize(q = quantile(ap_hi, prob=0.95, na.rm=T))
+
+dias.95 <- cardio.dat %>% 
+            summarize(q =quantile(ap_lo, prob=0.95, na.rm=T))
+
+bmi.95 <- cardio.dat %>% 
+            summarize(q =quantile(bmi, prob=0.95, na.rm=T))
+
+# Filter anwenden
+cardio.dat.filter <- cardio.dat %>% 
+                  filter(bmi < bmi.95$q,
+                         ap_hi < sys.95$q,
+                         ap_lo < dias.95$q,
+                         ap_hi > 0,
+                         ap_lo > 0)
+```
+
+
+
+### Systolic blood pressure ~ BMI, filtered data
+
+```{r sys plot filter, fig.height=3, fig.width=6}
+cardio.dat.filter %>% 
+  ggplot(aes(bmi, ap_hi, color=cardio))+
+    geom_point(alpha=0.5)+
+    xlab("BMI")+
+    ylab("Systolic Blood Pressure")+
+    #scale_color_manual(guide=FALSE)+
+    theme_minimal()+
+    theme(legend.title=element_blank())
+```
+
+The data on the bottom right is probably still incorrect, but there is not enough
+information about the data source and the unit of measurements to be 100% sure.
+Since the outliers are not that extreme anymore and the vast majority of data lies in 
+an acceptable range, no further data will be excluded.
+
+```{r sys correlations filtered}
+# all data
+sys.cor.filter <- cardio.dat.filter %>% 
+  summarize(cor = round(cor.test(ap_hi, bmi)$estimate,2),
+            p = round(cor.test(ap_hi, bmi)$p.value,5))
+
+# splitted by cardio
+sys.cor.cardio.filter <- cardio.dat.filter %>% 
+  group_by(cardio) %>% 
+  summarize(cor = round(cor.test(ap_hi, bmi)$estimate,2),
+            p = round(cor.test(ap_hi, bmi)$p.value,5))
+```
+After filtering the data, the correlation increases ( _r_= `r sys.cor.filter$cor`, 
+_p_< 0.0001).
+
+Splitting the data into people unaffected and affected by cardiovascular disease,
+similar correlations emerge (unaffected: _r_ = `r sys.cor.cardio.filter$cor[1]`, 
+affected: _r_ = `r sys.cor.cardio.filter$cor[2]`, both p < 0.0001).
+
+The smaller correlation for people with cardiovascular disease suggests other 
+factors affect BMI and systolic blood pressure more than for healthy people.
+
+In general, people with cardiovascular disease tend to have higher systolic blood
+pressure and BMI, as can be seen in the plot above.
+
+
+
+
+### Diastolic blood pressure ~ BMI, filtered data
+
+```{r dias plot filter, fig.height=3, fig.width=6}
+cardio.dat.filter %>% 
+  ggplot(aes(bmi, ap_lo, color=cardio))+
+    geom_point(alpha=0.5)+
+    xlab("BMI")+
+    ylab("Diastolic Blood Pressure")+
+    #scale_color_manual(guide=FALSE)+
+    theme_minimal()+
+    theme(legend.title=element_blank())
+```
+
+As with the plot for systolic blood pressure, some data is still likely flawed.
+The same conclusions as above apply.
+
+```{r dias correlations filtered}
+# all data
+dias.cor.filter <- cardio.dat.filter %>% 
+  summarize(cardio = "not splitted",
+            cor = round(cor.test(ap_lo, bmi)$estimate,2),
+            p = round(cor.test(ap_lo, bmi)$p.value,5))
+
+# splitted by cardio
+dias.cor.cardio.filter <- cardio.dat.filter %>% 
+  group_by(cardio) %>% 
+  summarize(cor = round(cor.test(ap_lo, bmi)$estimate,2),
+            p = round(cor.test(ap_lo, bmi)$p.value,5))
+```
+
+Unsurprisingly, the correlations for diastolic blood pressure and BMI are similar
+to those of systolic blood pressure and BMI.
+
+```{r display corrtable filter}
+# combine table
+dias.cor.comb.filter <- rbind(dias.cor.filter, dias.cor.cardio.filter)
+
+# display table nicely
+knitr::kable(dias.cor.comb.filter)
+```
+
+_p-values smaller than 0.0001 are displayed as 0_
+
+## Exercise 5
+
+_How is age distributed in the different categories of cardio?_
+_Display age in years._
+
+
+```{r age distrib}
+#calculate mean +sd to add to plot
+age.add <- cardio.dat %>% 
+  group_by(cardio) %>% 
+  summarize(x = 1,
+            y = 1,
+            mean= round(mean(age.years, na.rm=T),2),
+            sd = round(sd(age.years, na.rm=T),2),
+            xsd= c(mean-sd, mean+sd))
+
+# Plot
+cardio.dat %>% 
+  ggplot(aes(age.years, ..density..))+
+    geom_histogram()+
+    geom_point(data=age.add, 
+               aes(x=mean, y=0.01), 
+               color="darkred", 
+               size=3)+
+    geom_line(data=age.add,
+              aes(x=xsd,0.01),
+              color="darkred")+
+    facet_grid(~cardio)+
+    theme_minimal()+
+    xlab("Age")
+```
+
+_Red point and line display mean and standard error._
+
+People with a cardiovascular disease are older than people without.
+
+
+```{r t-test age, include=FALSE}
+# build subsets.
+healthy <- cardio.dat %>% 
+  filter(cardio == "disease absent")
+
+disease <- cardio.dat %>% 
+  filter(cardio == "disease present")
+
+# test difference
+t.test(healthy$age.years, disease$age.years)
+```
+This difference is significant (_p_ < 0.0001)
+
+## Exercise 6
+
+_Create a plot that show the distribution of age for both types of gender and_ 
+_both types of cardio._
+
+```{r plot age cardio gender}
+cardio.dat %>% 
+  ggplot(aes(age.years, ..density.., fill=gender, group=gender))+
+    geom_histogram()+
+    facet_grid(~cardio)+
+    theme_minimal()+
+    xlab("Age")
+```
+
+## Exercise 7
+
+_Extend this plot by taking the different types of glucose into account_
+
+```{r plot age cardio gender gluc}
+cardio.dat %>% 
+  ggplot(aes(age.years, ..density.., fill=gender, group=gender))+
+    geom_histogram()+
+    facet_grid(gluc~cardio)+
+    theme_minimal()+
+    xlab("Age")
+```
+
+## Exercise 8
+
+_Further risk factors for a cardiovascular disease may be smoking, alcohol,and_ 
+_insufficient physical activity. Create an overview table of how these_
+_three parameters are distributed between the two types of cardio and_
+_compare all three with a chi-square-test, respectively. Draw a conclusion about_
+_which of these parameters may be risk factors for cardiovascular diseases._
+
+The values of the variables "alco" and "active" are not clearly defined, but I
+expect 0 to represent "no/not much alcohol intake"/"not much physical activity" 
+and 1 to represent "much alcohol intake"/"much physical activity"
+
+
+```{r tables alco smoke active}
+# Create crosstabs
+tab.alco <- cardio.dat %>% 
+  select(cardio,alco) %>% 
+  table()
+
+tab.smoke <- cardio.dat %>% 
+  select(cardio,smoke) %>% 
+  table()
+
+tab.active <- cardio.dat %>% 
+  select(cardio,active) %>% 
+  table()
+```
+
+```{r alco chi}
+# display nicely
+knitr::kable(tab.alco, caption = "Cardiovascular disease X Alcohol intake")
+
+#test
+chi.alco <- cardio.dat %>% 
+  select(cardio,alco) %>% 
+  table() %>% 
+  chisq.test()
+
+```
+
+The chi-square-test shows that there are no differences in the alcohol consumption
+between people with and without cardiovascular diseases ( _p_ = `r round(chi.alco$p.value, 3)`).
+
+```{r smoke chi}
+#display nicely
+knitr::kable(tab.smoke, caption = "Cardiovascular disease X Smoking")
+
+#test
+chi.smoke <- cardio.dat %>% 
+  select(cardio,smoke) %>% 
+  table() %>% 
+  chisq.test()
+```
+The chi-square-test shows that there are differences in smoking behavior
+between people with and without cardiovascular diseases ( _p_ < 0.0001).
+
+```{r active chi}
+#display nicely
+knitr::kable(tab.active, caption = "Cardiovascular disease X Physical Activity")
+
+# test
+chi.active <- cardio.dat %>% 
+  select(cardio,active) %>% 
+  table() %>% 
+  chisq.test()
+```
+The chi-square-test shows that there are differences in physical activity
+between people with and without cardiovascular diseases ( _p_ < 0.0001).
+
+
+## Conclusion
+
+Considering the results of the chi-square-tests and the observed frequencies,
+only one of the parameters is a potential risk factor for cardiovascular diseases.
+
+First, there is are no differences in alcohol consumption, which eliminates it as
+a possible candidate.
+
+Second, there is a difference in smoking behavior, but it shows that a smaller 
+fraction of people with cardiovascular disease smoke than the healthy people do.
+Thus, smoking cannot be considered as a risk factor. According to the data, it is 
+more of a "protecting factor", though this seems rather unlikely, considering other
+studies about smoking.
+
+Finally, there are differences in physical activity. Healthy people move more, so
+"not much physical activity" can be considered as a risk factor. Though it is unclear
+whether the disease potentially hinders one to lead an active lifestyle.
+
+Considering the other parameters evaluated, the risk for a cardiovascular disease
+seems to increase with age. Descriptively, people with cardiovascular disease have
+a higher BMI and blood pressure. Additionally, high glucose level may be more probable
+for people with cardiovascular diseases (or the other way around), though precise
+conclusions are difficult with only plotting. Further tests would be necessary.
