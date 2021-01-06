@@ -20,12 +20,15 @@ library(tidyverse)
 ```{r data, include=FALSE}
 cardio.dat <- read.csv("cardio_train.csv", sep=";") %>% 
   as_tibble() %>% 
-  mutate(bmi = weight/(height/100)^2,
-         age.years = floor(age/365.25),
-         gender = as.factor(gender),
-         gluc = as.factor(gluc),
-         alco = as.factor(alco),
-         active = as.factor(active))
+  mutate(bmi = weight/(height/100)^2, #compute new variable bmi
+         age.years = floor(age/365.25), # compute age in years
+         # factor formatting
+         cardio = factor(cardio,labels=c("disease absent", "disease present")), # change labels
+         gender = factor(gender, labels = c("women", "men")),
+         gluc = factor(gluc, labels =c("glucose normal", "above normal", "well above normal")),
+         smoke = factor(smoke, labels = c("not smoking", "smoking")),
+         alco = factor(alco, labels= c("not much alcohol intake", "much alcohol intake")),
+         active = factor(active, labels=c("not very active", "very active")))
 ```
 
 ## Exercise 1
