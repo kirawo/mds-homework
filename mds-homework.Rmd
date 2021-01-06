@@ -10,5 +10,176 @@ library(tidyverse)
 ```
 
 ```{r data}
-cardio <- read.csv("cardio_train.csv")
+cardio.dat <- read.csv("cardio_train.csv", sep=";") %>% 
+  as_tibble() %>% 
+  mutate(bmi = weight/(height/100)^2,
+         age.years = floor(age/365.25),
+         gender = as.factor(gender),
+         gluc = as.factor(gluc),
+         alco = as.factor(alco),
+         active = as.factor(active))
 ```
+
+## Exercise 1
+
+BMI ~ Cardio, no filter
+
+```{r bmi vergleich}
+bmi.tab <- cardio.dat %>% 
+              group_by(cardio) %>% 
+              summarize(mean = round(mean(bmi, na.rm=T),2),
+                        sd = round(sd(bmi, na.rm=T),2))
+
+knitr::kable(bmi.tab, 
+             caption= "BMI by cardiovascular disease")
+```
+
+## Exercise 2
+
+Systolic blood pressure, no filter
+
+```{r}
+cardio.dat %>% 
+  summarize(cor=cor(ap_hi, bmi))
+
+
+cardio.dat %>% 
+  group_by(cardio) %>% 
+  summarize(cor=cor(ap_hi, bmi))
+
+cardio.dat %>% 
+  ggplot(aes(ap_hi, bmi))+
+    geom_point()
+```
+## Exercise 3
+
+Diastolic blood pressure, no filter
+
+```{r}
+cardio.dat %>% 
+  summarize(cor=cor(ap_lo, bmi))
+
+
+cardio.dat %>% 
+  group_by(cardio) %>% 
+  summarize(cor=cor(ap_lo, bmi))
+```
+## Exercise 4
+
+```{r quantiles}
+sys.95 <- cardio.dat %>% 
+            summarize(q = quantile(ap_hi, prob=0.95, na.rm=T))
+
+dias.95 <- cardio.dat %>% 
+            summarize(q =quantile(ap_lo, prob=0.95, na.rm=T))
+
+bmi.95 <- cardio.dat %>% 
+            summarize(q =quantile(bmi, prob=0.95, na.rm=T))
+
+cardio.dat.filter <- cardio.dat %>% 
+                  filter(bmi < bmi.95$q,
+                         ap_hi < sys.95$q,
+                         ap_lo < dias.95$q)
+```
+
+
+BMI ~ Cardio, blood pressure and bmi filter
+
+```{r bmi vergleich filterd}
+bmi.tab.filter <- cardio.dat.filter %>% 
+              group_by(cardio) %>% 
+              summarize(mean = round(mean(bmi, na.rm=T),2),
+                        sd = round(sd(bmi, na.rm=T),2))
+
+knitr::kable(bmi.tab.filter, 
+             caption= "BMI by cardiovascular disease")
+```
+
+
+Systolic blood pressure, blood pressure and bmi filter
+
+```{r}
+cardio.dat.filter %>% 
+  summarize(cor=cor(ap_hi, bmi))
+
+
+cardio.dat.filter %>% 
+  group_by(cardio) %>% 
+  summarize(cor=cor(ap_hi, bmi))
+```
+
+
+Diastolic blood pressure, blood pressure and bmi filter
+
+```{r}
+cardio.dat.filter %>% 
+  summarize(cor=cor(ap_lo, bmi))
+
+
+cardio.dat.filter %>% 
+  group_by(cardio) %>% 
+  summarize(cor=cor(ap_lo, bmi))
+```
+
+## Exercise 5
+
+```{r}
+cardio.dat %>% 
+  ggplot(aes(age.years, ..density..))+
+    geom_histogram()+
+    facet_grid(~cardio)+
+    theme_minimal()
+```
+## Exercise 6
+
+```{r}
+cardio.dat %>% 
+  ggplot(aes(age.years, ..density.., fill=gender, group=gender))+
+    geom_histogram()+
+    facet_grid(~cardio)+
+    theme_minimal()
+
+cardio.dat %>% 
+  ggplot(aes(age.years, ..density.., fill=gender, group=gender))+
+    geom_histogram()+
+    facet_grid(gender~cardio)+
+    theme_minimal()
+```
+## Exercise 7
+```{r}
+cardio.dat %>% 
+  ggplot(aes(age.years, ..density.., fill=gender, group=gender))+
+    geom_histogram()+
+    facet_grid(gluc~cardio)+
+    theme_minimal()
+```
+Mittelwert und Median einzeichnen?
+
+```{r}
+cardio.dat %>% 
+  group_by(cardio) %>% 
+  summarise(alcohol = table(alco),
+            smoking = table(smoke),
+            activity = table(active))
+
+cardio.dat %>% 
+  group_by(cardio) %>% 
+  summarise(alcohol = table(alco),
+            smoking = table(smoke),
+            activity = table(active))
+```
+
+```{r chi²}
+#cardio.dat %>% 
+  #table(cardio, alco)
+
+chisq.test(table(cardio.dat$cardio, cardio.dat$alco))
+chisq.test(table(cardio.dat$alco,cardio.dat$cardio))
+
+chisq.test(table(cardio.dat$cardio, cardio.dat$smoke))
+
+chisq.test(table(cardio.dat$cardio, cardio.dat$active))
+
+
+```
+
