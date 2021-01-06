@@ -50,11 +50,16 @@ cardio.dat %>%
 
 BMI ~ Cardio, no filter
 
-```{r bmi vergleich}
+
+
+```{r bmi comparison}
+# create table with bmi mean and sd
 bmi.tab <- cardio.dat %>% 
               group_by(cardio) %>% 
               summarize(mean = round(mean(bmi, na.rm=T),2),
-                        sd = round(sd(bmi, na.rm=T),2))
+                        sd = round(sd(bmi, na.rm=T),2),
+                        min = round(min(bmi, na.rm=T),2),
+                        max = round(max(bmi, na.rm=T)))
 
 knitr::kable(bmi.tab, 
              caption= "BMI by cardiovascular disease")
