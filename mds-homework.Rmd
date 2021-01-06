@@ -29,6 +29,21 @@ cardio.dat <- read.csv("cardio_train.csv", sep=";") %>%
          smoke = factor(smoke, labels = c("not smoking", "smoking")),
          alco = factor(alco, labels= c("not much alcohol intake", "much alcohol intake")),
          active = factor(active, labels=c("not very active", "very active")))
+
+#check for unrealistic data of continuous parameters
+cardio.dat %>% 
+  summarize(min.age = min(age.years),
+         max.age = max(age.years),
+         min.height = min(height),
+         max.height = max(height),
+         min.weight = min(weight),
+         max.weight = max(weight),
+         min.sys = min(ap_hi),
+         max.sys = max(ap_hi),
+         min.dias = min(ap_lo),
+         max.dias = max(ap_lo)
+         )
+
 ```
 
 ## Exercise 1
