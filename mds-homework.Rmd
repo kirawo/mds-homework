@@ -17,7 +17,7 @@ knitr::opts_chunk$set(echo=FALSE,  warning=FALSE, error=FALSE, message=FALSE)
 library(tidyverse)
 ```
 
-```{r data}
+```{r data, include=FALSE}
 cardio.dat <- read.csv("cardio_train.csv", sep=";") %>% 
   as_tibble() %>% 
   mutate(bmi = weight/(height/100)^2,
