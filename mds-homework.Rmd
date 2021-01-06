@@ -5,6 +5,12 @@ date: "29 12 2020"
 output: pdf_document
 ---
 
+```{r setup}
+knitr::opts_chunk$set(include=FALSE, comment="")
+
+```
+
+
 ```{r packages}
 library(tidyverse)
 ```
